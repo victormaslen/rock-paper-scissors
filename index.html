@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rock Paper Scissors</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1.5rem;
+    font-family: system-ui, sans-serif; color: #fff;
+    background: linear-gradient(135deg, #3b2f8f, #1e7fa8);
+  }
+  h1 { margin: 0; }
+  .score { display: flex; gap: 1.5rem; font-size: 1.1rem; }
+  .score span { background: rgba(255,255,255,.15); padding: .4rem 1rem; border-radius: 999px; }
+
+  .arena { display: flex; align-items: center; gap: 2rem; min-height: 190px; }
+  .side { text-align: center; }
+  .side small { display: block; opacity: .8; margin-bottom: .5rem; letter-spacing: .1em; }
+  .hand { font-size: 6rem; line-height: 1.1; display: inline-block; }
+  .vs { font-size: 2rem; font-weight: bold; opacity: .7; }
+
+  #countdown { font-size: 5rem; font-weight: bold; height: 6rem; }
+  #countdown.tick { animation: pop .8s ease-out; }
+  @keyframes pop { from { transform: scale(2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* shaking fists before the reveal */
+  .shake.player { animation: shakeL .3s ease-in-out 3; }
+  .shake.computer { animation: shakeR .3s ease-in-out 3; }
+  @keyframes shakeL { 0%,100% { transform: translateY(0) rotate(-10deg); } 50% { transform: translateY(-30px) rotate(10deg); } }
+  @keyframes shakeR { 0%,100% { transform: translateY(0) scaleX(-1) rotate(-10deg); } 50% { transform: translateY(-30px) scaleX(-1) rotate(10deg); } }
+  .reveal { animation: reveal .5s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes reveal { from { transform: scale(.2) rotate(-180deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+  .winner { filter: drop-shadow(0 0 18px gold); animation: bounce .6s ease 2; }
+  .loser { opacity: .45; filter: grayscale(.8); }
+  @keyframes bounce { 50% { transform: scale(1.3); } }
+
+  #result { font-size: 2rem; font-weight: bold; height: 2.5rem; }
+
+  .choices { display: flex; gap: 1.2rem; }
+  .choices button {
+    font-size: 4rem; width: 130px; height: 130px; border-radius: 50%;
+    border: 4px solid rgba(255,255,255,.4); background: rgba(255,255,255,.15);
+    cursor: pointer; transition: transform .15s, background .15s;
+  }
+  .choices button:hover:not(:disabled) { transform: scale(1.12); background: rgba(255,255,255,.3); }
+  .choices button:disabled { opacity: .4; cursor: not-allowed; }
+  .choices button.picked { opacity: 1; border-color: gold; }
+  #prompt { opacity: .85; }
+</style>
+</head>
+<body>
+  <h1>Rock Paper Scissors</h1>
+  <div class="score">
+    <span>Wins: <b id="win">0</b></span>
+    <span>Losses: <b id="lose">0</b></span>
+    <span>Ties: <b id="tie">0</b></span>
+  </div>
+
+  <div class="arena">
+    <div class="side"><small>YOU</small><div class="hand player" id="playerHand">❔</div></div>
+    <div class="vs">VS</div>
+    <div class="side"><small>COMPUTER</small><div class="hand computer" id="computerHand">❔</div></div>
+  </div>
+
+  <div id="countdown"></div>
+  <div id="result"></div>
+  <div id="prompt">Choose your move</div>
+
+  <div class="choices">
+    <button data-choice="rock" title="Rock" aria-label="Rock">✊</button>
+    <button data-choice="paper" title="Paper" aria-label="Paper">✋</button>
+    <button data-choice="scissors" title="Scissors" aria-label="Scissors">✌️</button>
+  </div>
+
+<script>
+  const ICONS = { rock: '✊', paper: '✋', scissors: '✌️' };
+  const CHOICES = Object.keys(ICONS);
+  const BEATS = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+  const score = { win: 0, lose: 0, tie: 0 };
+
+  const $ = (id) => document.getElementById(id);
+  const buttons = document.querySelectorAll('.choices button');
+  const playerHand = $('playerHand');
+  const computerHand = $('computerHand');
+  const countdown = $('countdown');
+  const result = $('result');
+  const prompt = $('prompt');
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function resetHands() {
+    for (const h of [playerHand, computerHand]) {
+      h.className = 'hand ' + (h === playerHand ? 'player' : 'computer');
+      h.textContent = '❔';
+    }
+  }
+
+  async function play(player, button) {
+    buttons.forEach((b) => (b.disabled = true));
+    button.classList.add('picked');
+    resetHands();
+    result.textContent = '';
+    prompt.textContent = 'Get ready...';
+
+    // countdown
+    for (const n of ['3', '2', '1']) {
+      countdown.textContent = n;
+      countdown.classList.remove('tick');
+      void countdown.offsetWidth; // restart animation
+      countdown.classList.add('tick');
+      await wait(800);
+    }
+    countdown.textContent = 'GO!';
+    countdown.classList.remove('tick');
+    void countdown.offsetWidth;
+    countdown.classList.add('tick');
+
+    // shaking fists
+    playerHand.textContent = computerHand.textContent = ICONS.rock;
+    playerHand.classList.add('shake');
+    computerHand.classList.add('shake');
+    await wait(950);
+    playerHand.classList.remove('shake');
+    computerHand.classList.remove('shake');
+    countdown.textContent = '';
+
+    // reveal
+    const computer = CHOICES[Math.floor(Math.random() * CHOICES.length)];
+    playerHand.textContent = ICONS[player];
+    computerHand.textContent = ICONS[computer];
+    playerHand.classList.add('reveal');
+    computerHand.classList.add('reveal');
+    await wait(550);
+
+    let outcome;
+    if (player === computer) outcome = 'tie';
+    else if (BEATS[player] === computer) outcome = 'win';
+    else outcome = 'lose';
+
+    score[outcome]++;
+    $(outcome).textContent = score[outcome];
+
+    if (outcome === 'win') {
+      playerHand.classList.add('winner'); computerHand.classList.add('loser');
+      result.textContent = '🎉 You win!';
+    } else if (outcome === 'lose') {
+      computerHand.classList.add('winner'); playerHand.classList.add('loser');
+      result.textContent = '😢 You lose';
+    } else {
+      result.textContent = "🤝 It's a tie";
+    }
+
+    prompt.textContent = 'Choose your move to play again';
+    button.classList.remove('picked');
+    buttons.forEach((b) => (b.disabled = false));
+  }
+
+  buttons.forEach((b) => b.addEventListener('click', () => play(b.dataset.choice, b)));
+</script>
+</body>
+</html>
